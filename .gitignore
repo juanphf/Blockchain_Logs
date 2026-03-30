@@ -9,3 +9,6 @@ __pycache__/
 
 # Arquivos de Sistema Opeacional
 .DS_Store
+
+# Scripts de teste locais temporários
+test_core.py
