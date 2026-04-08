@@ -1,10 +1,10 @@
 import os
 from dotenv import load_dotenv
+import random
 
 load_dotenv()
 
 # --- Configurações do Kafka ---
-# Pega o endereço do Kafka do .env. Se não existir, usa o padrão localhost:9092
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 
 # Tópico onde os logs soltos chegam
@@ -20,11 +20,11 @@ def get_consumer_config(group_id="blockchain_node_1"):
     O group_id define quem está lendo. Nós diferentes devem ter group_ids diferentes
     se quiserem ler todas as mensagens.
     """
+    if group_id is None:
+        group_id = f"blockchain_node_{random.randint(1000, 99999)}"
     return {
         'bootstrap.servers': KAFKA_BROKER,
         'group.id': group_id,
-        # 'earliest' garante que, ao iniciar pela primeira vez, o nó leia 
-        # todos os logs desde o início do tópico para reconstruir o histórico.
         'auto.offset.reset': 'earliest' 
     }
 

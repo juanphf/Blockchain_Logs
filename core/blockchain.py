@@ -2,6 +2,7 @@ import os
 import time
 from dotenv import load_dotenv
 from core.block import Block
+from core.log_record import LogRecord
 
 load_dotenv()
 
@@ -28,11 +29,28 @@ class Blockchain:
     def get_latest_block(self):
         return self.chain[-1]
 
-    def add_log(self, log_record):
+    def add_log(self, log_data):
         """
-        Tenta adicionar um novo LogRecord à Mempool.
+        Recebe os dados brutos (dict do Kafka), transforma em LogRecord, valida e adiciona à Mempool.
+        Retorna True APENAS se essa adição disparou o fechamento de um bloco.
         """
-        # Auditoria 
+        try:
+            # Tenta montar o objeto LogRecord com os dados do dicionário
+            log_record = LogRecord(
+                node_public_key=log_data['node_public_key'],
+                timestamp=log_data['timestamp'],
+                namespace=log_data['namespace'],
+                pod_name=log_data['pod_name'],
+                level=log_data['level'],
+                message=log_data['message'],
+                signature=log_data.get('signature', '')
+            )
+        except KeyError as e:
+            # Se faltar algum campo obrigatório no JSON que veio do Kafka
+            print(f"[X] ALERTA: Formato de log inválido. Faltando o campo {e}")
+            return False
+
+        # Auditoria Criptográfica
         if not log_record.is_valid():
             print("[X] ALERTA DE SEGURANÇA: Log rejeitado! Assinatura inválida ou conteúdo corrompido.")
             return False
@@ -44,9 +62,11 @@ class Blockchain:
         # Gatilho de Selagem
         if len(self.pending_logs) >= self.max_logs_per_block:
             self.seal_block()
+            return True # Bloco fechado!
         
-        return True
-
+        return False # Faltam mais logs
+    
+    
     def seal_block(self):
         """
         Pega os 10 logs da Mempool e sela matematicamente em um novo bloco.

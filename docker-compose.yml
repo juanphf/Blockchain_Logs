@@ -1,0 +1,6 @@
+services:
+  kafka:
+    image: confluentinc/confluent-local:7.5.0
+    container_name: kafka-node
+    ports:
+      - "9092:9092"
