@@ -12,3 +12,4 @@ __pycache__/
 
 # Scripts de teste locais temporários
 test_core.py
+.aider*

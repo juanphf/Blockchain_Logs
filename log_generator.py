@@ -77,7 +77,7 @@ class K8sLogGenerator:
 
 if __name__ == "__main__":
     semente_do_trabalho = int(os.getenv("LOG_SEED", "20260406"))
-    delay_log = float(os.getenv("DELAY_LOG", "0.5"))
+    delay_log = float(os.getenv("DELAY_LOG", "2.0"))
     
     gerador = K8sLogGenerator(seed_value=semente_do_trabalho)
 

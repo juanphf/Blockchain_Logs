@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Auditor | Live Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="gradients">
+        <div class="gradient-blob blob-1"></div>
+        <div class="gradient-blob blob-2"></div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- CABEÇALHO -->
+        <header class="glass-panel">
+            <div class="brand">
+                <div class="pulse-indicator" id="connection-status"></div>
+                <h1>Blockchain Auditor</h1>
+            </div>
+            <div class="network-stats">
+                <div class="stat">
+                    <span class="label">NÓS CONECTADOS</span>
+                    <span class="val" id="node-count-val">1</span>
+                </div>
+                <div class="stat">
+                    <span class="label">PICO DA CADEIA (LATEST BLOCK)</span>
+                    <span class="val" id="latest-block-index">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-grid">
+            <!-- MEMPOOL -->
+            <section class="mempool-section glass-panel">
+                <div class="section-header">
+                    <h2>Mempool (Aguardando Selagem)</h2>
+                    <span class="badge" id="mempool-count">0/10</span>
+                </div>
+                <div class="log-list" id="mempool-container">
+                    <!-- Logs da Mempool injetados aqui -->
+                </div>
+            </section>
+
+            <!-- CADEIA DE BLOCOS -->
+            <section class="chain-section glass-panel">
+                <div class="section-header">
+                    <h2>Corrente Principal (Main Chain)</h2>
+                    <span class="badge success">Consenso Determinístico</span>
+                </div>
+                <div class="blocks-container" id="blocks-container">
+                    <!-- Blocos injetados aqui -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import json
 import traceback
 from confluent_kafka import Consumer, KafkaError
-from network.config import get_consumer_config, TOPIC_LOGS
+from network.config import get_consumer_config, TOPIC_LOGS, TOPIC_PINGS
 
 class AuditConsumer:
     def __init__(self, blockchain_instance):
@@ -12,12 +12,12 @@ class AuditConsumer:
         self.consumer = Consumer(get_consumer_config())
         self.running = False
 
-    def start(self, on_log_received=None, on_block_mined=None):
+    def start(self, on_log_received=None, on_block_mined=None, on_ping_received=None):
         """
         Inicia o loop infinito de escuta do Kafka.
         Os callbacks servem para enviar dados ao Front-end em tempo real.
         """
-        self.consumer.subscribe([TOPIC_LOGS])
+        self.consumer.subscribe([TOPIC_LOGS, TOPIC_PINGS])
         self.running = True
         
         print(f"[*] Consumidor iniciado. Ouvindo o tópico: {TOPIC_LOGS}")
@@ -38,8 +38,16 @@ class AuditConsumer:
                             print(f"[Erro Kafka] {msg.error()}")
                             break
 
-                    # Decodifica o JSON do log que chegou do Kafka
-                    log_data = json.loads(msg.value().decode('utf-8'))
+                    topic = msg.topic()
+                    payload = json.loads(msg.value().decode('utf-8'))
+                    
+                    if topic == TOPIC_PINGS:
+                        if on_ping_received:
+                            on_ping_received(payload)
+                        continue
+                        
+                    # --- ABAIXO: Lógica para logs ---
+                    log_data = payload
                     
                     # Notifica o servidor web para avisar o Front 
                     if on_log_received:
