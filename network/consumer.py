@@ -1,76 +1,66 @@
 import json
 import traceback
 from confluent_kafka import Consumer, KafkaError
-from network.config import get_consumer_config, TOPIC_LOGS, TOPIC_PINGS
+from network.config import get_consumer_config, TOPIC_LOGS, TOPIC_PINGS, TOPIC_BLOCKS
 
 class AuditConsumer:
     def __init__(self, blockchain_instance):
-        """
-        Inicia o consumidor atrelando-o à instância local da blockchain.
-        """
         self.blockchain = blockchain_instance
         self.consumer = Consumer(get_consumer_config())
         self.running = False
 
-    def start(self, on_log_received=None, on_block_mined=None, on_ping_received=None):
-        """
-        Inicia o loop infinito de escuta do Kafka.
-        Os callbacks servem para enviar dados ao Front-end em tempo real.
-        """
-        self.consumer.subscribe([TOPIC_LOGS, TOPIC_PINGS])
+    def start(self, on_log_received=None, on_block_mined=None, on_ping_received=None, on_sync_needed=None):
+        self.consumer.subscribe([TOPIC_LOGS, TOPIC_PINGS, TOPIC_BLOCKS])
         self.running = True
         
-        print(f"[*] Consumidor iniciado. Ouvindo o tópico: {TOPIC_LOGS}")
+        print(f"[*] Consumidor iniciado. Ouvindo redes Kafka...")
 
         try:
             while self.running:
-                # Evita que a Thread morra em silêncio
                 try: 
                     msg = self.consumer.poll(timeout=1.0)
-
-                    if msg is None:
-                        continue
-                    
-                    if msg.error():
-                        if msg.error().code() == KafkaError._PARTITION_EOF:
-                            continue
-                        else:
-                            print(f"[Erro Kafka] {msg.error()}")
-                            break
+                    if msg is None: continue
+                    if msg.error(): continue
 
                     topic = msg.topic()
                     payload = json.loads(msg.value().decode('utf-8'))
                     
                     if topic == TOPIC_PINGS:
-                        if on_ping_received:
-                            on_ping_received(payload)
+                        if on_ping_received: on_ping_received(payload)
+                        
+                        # Verifica se o nó do ping tem uma corrente maior. Se sim, dispara sync.
+                        peer_chain_length = payload.get("chain_length", 0)
+                        if peer_chain_length > len(self.blockchain.chain) and on_sync_needed:
+                            on_sync_needed(payload.get("api_url"))
+                        continue
+
+                    if topic == TOPIC_BLOCKS:
+                        # TODOS os nós validam o bloco vindo do Kafka, inclusive quem enviou. 
+                        # O Kafka dita a ordem de chegada (Consenso determinístico)
+                        accepted = self.blockchain.add_proposed_block(payload)
+                        
+                        if accepted and on_block_mined:
+                            on_block_mined(self.blockchain.get_latest_block())
                         continue
                         
-                    # --- ABAIXO: Lógica para logs ---
-                    log_data = payload
-                    
-                    # Notifica o servidor web para avisar o Front 
-                    if on_log_received:
-                        on_log_received(log_data)
-
-                    # Envia para a Blockchain processar a regra de negócio e auditoria
-                    block_closed = self.blockchain.add_log(log_data)
-
-                    # Se a adição desse log fechou um bloco de 10, avisa o Front
-                    if block_closed and on_block_mined:
-                        last_block = self.blockchain.get_latest_block()
-                        on_block_mined(last_block)
+                    if topic == TOPIC_LOGS:
+                        if on_log_received: on_log_received(payload)
+                        
+                        # add_log retorna um bloco se esse log engatilhou a selagem (10 logs)
+                        new_block = self.blockchain.add_log(payload)
+                        
+                        # Se nós fechamos o bloco, avisamos o Front e devolvemos pra API transmitir a PROPOSTA
+                        if new_block and on_block_mined:
+                            on_block_mined(new_block, broadcast=True)
 
                 except Exception as e:
-                    print(f"\n[!!!] ERRO FATAL NA THREAD DO CONSUMIDOR: {e}")
                     traceback.print_exc() 
-                    break # Interrompe o loop em caso de erro crítico
+                    break 
 
         except KeyboardInterrupt:
-            print("\n[!] Encerrando consumidor...")
+            pass
         finally:
             self.consumer.close()
 
     def stop(self):
-        """Para o loop de escuta do consumidor."""
         self.running = False

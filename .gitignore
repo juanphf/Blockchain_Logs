@@ -2,6 +2,7 @@
 venv/
 env/
 .env
+*.pem
 
 # Cache do Python
 __pycache__/

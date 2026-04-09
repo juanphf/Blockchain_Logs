@@ -3,6 +3,7 @@ import time
 from dotenv import load_dotenv
 from core.block import Block
 from core.log_record import LogRecord
+from core.wallet import Wallet
 
 load_dotenv()
 
@@ -11,76 +12,55 @@ class Blockchain:
         self.chain = []
         self.pending_logs = []
         
-        # Regras de Negócio da arquitetura permissionada
+        # Identidade DESTE nó na rede
+        self.node_wallet = Wallet()
+        print(f"[*] Identidade do Nó Criada (Public Key): {self.node_wallet.public_key[:20]}...")
+        
         self.max_logs_per_block = 10
         self.delay_block = float(os.getenv("DELAY_BLOCK", "0.0"))
         
-        # Ao nascer, a blockchain sempre cria o "Bloco Zero"
         self.create_genesis_block()
 
     def create_genesis_block(self):
         """
-        O Bloco Gênesis é o alicerce. Não contém logs e seu hash anterior é 0.
+        O Bloco Gênesis é o alicerce. Ele DEVE ser matematicamente idêntico 
+        em todos os nós do planeta. Por isso, travamos o timestamp em 0.0.
         """
-        genesis_block = Block(index=0, logs=[], previous_hash="0")
+        genesis_block = Block(index=0, logs=[], previous_hash="0", timestamp=0.0)
         self.chain.append(genesis_block)
-        print("[*] Bloco Gênesis gerado e ancorado com sucesso.")
+        print(f"[*] Bloco Gênesis ancorado. Hash Oficial: {genesis_block.hash[:15]}...")
 
     def get_latest_block(self):
         return self.chain[-1]
 
     def add_log(self, log_data):
-        """
-        Recebe os dados brutos (dict do Kafka), transforma em LogRecord, valida e adiciona à Mempool.
-        Retorna True APENAS se essa adição disparou o fechamento de um bloco.
-        """
+        """Adiciona log validado à Mempool local."""
         try:
-            # Tenta montar o objeto LogRecord com os dados do dicionário
-            log_record = LogRecord(
-                node_public_key=log_data['node_public_key'],
-                timestamp=log_data['timestamp'],
-                namespace=log_data['namespace'],
-                pod_name=log_data['pod_name'],
-                level=log_data['level'],
-                message=log_data['message'],
-                signature=log_data.get('signature', '')
-            )
+            log_record = LogRecord.from_dict(log_data)
         except KeyError as e:
-            # Se faltar algum campo obrigatório no JSON que veio do Kafka
-            print(f"[X] ALERTA: Formato de log inválido. Faltando o campo {e}")
-            return False
+            return None
 
-        # Auditoria Criptográfica
         if not log_record.is_valid():
-            print("[X] ALERTA DE SEGURANÇA: Log rejeitado! Assinatura inválida ou conteúdo corrompido.")
-            return False
-        
-        # Entrada na Mempool
-        self.pending_logs.append(log_record)
-        print(f"[OK] Log validado. Mempool: {len(self.pending_logs)}/{self.max_logs_per_block}")
+            return None
+            
+        # Evita logs duplicados na mempool
+        if any(l.signature == log_record.signature for l in self.pending_logs):
+            return None
 
-        # Gatilho de Selagem
+        self.pending_logs.append(log_record)
+        print(f"[OK] Log na Mempool: {len(self.pending_logs)}/{self.max_logs_per_block}")
+
         if len(self.pending_logs) >= self.max_logs_per_block:
-            self.seal_block()
-            return True # Bloco fechado!
-        
-        return False # Faltam mais logs
-    
+            return self.seal_block() # Retorna o bloco recém criado
+        return None
     
     def seal_block(self):
-        """
-        Pega os 10 logs da Mempool e sela matematicamente em um novo bloco.
-        """
-        print("\n[*] Capacidade máxima atingida. Iniciando empacotamento...")
-        
-        # Pausa para acompanhar no Dashboard
+        """O Nó atinge a cota, cria e assina o bloco como PROPOSTA."""
+        print("\n[*] Empacotando bloco e assinando...")
         if self.delay_block > 0:
-            print(f"[*] Modo Auditoria: Pausando {self.delay_block} segundos para o consenso visual...")
             time.sleep(self.delay_block)
 
         latest_block = self.get_latest_block()
-        
-        # Criando o bloco passando os primeiros 10 logs da fila
         logs_to_seal = self.pending_logs[:self.max_logs_per_block]
         
         new_block = Block(
@@ -89,11 +69,79 @@ class Blockchain:
             previous_hash=latest_block.hash
         )
         
-        # Atualizando a Corrente Oficial
-        self.chain.append(new_block)
+        # Assina o bloco com a identidade deste Nó
+        new_block.sign_block(self.node_wallet)
         
-        # Limpando apenas os 10 logs que foram empacotados
+        # Limpa os logs que foram empacotados da mempool
         self.pending_logs = self.pending_logs[self.max_logs_per_block:]
         
-        print(f"[Cadeado] Bloco {new_block.index} selado! Hash SHA-256: {new_block.hash[:20]}...\n")
-        return new_block
+        print(f"[*] Bloco {new_block.index} PROPOSTO por mim! Aguardando ordem do Kafka. Hash: {new_block.hash[:15]}...\n")
+        
+        return new_block # Retorna para o API.py publicar no Kafka
+
+    def add_proposed_block(self, block_data):
+        """Acionado quando um bloco de QUALQUER NÓ chega via Kafka."""
+        try:
+            proposed_block = Block.from_dict(block_data)
+        except Exception as e:
+            return False
+
+        latest_block = self.get_latest_block()
+
+        # 1. SIRENE DE ATAQUE (Passado distante): Menor que o atual
+        if proposed_block.index < latest_block.index:
+            print(f"\n[!!!] ALERTA CRÍTICO: Tentativa de reescrever a história! O Bloco {proposed_block.index} já está consolidado. Ataque bloqueado!")
+            return False
+
+        # 2. CONDIÇÃO DE CORRIDA (Empate técnico): Igual ao que acabamos de fechar
+        if proposed_block.index == latest_block.index:
+            print(f"[!] Bloco {proposed_block.index} (Hash: {proposed_block.hash[:8]}...) descartado. A rede já aceitou um bloco mais rápido!")
+            return False
+            
+        # 3. VERIFICAÇÃO DE ENCAIXE GERAL: Se não for exatamente o próximo, rejeita silenciosamente
+        if proposed_block.index != latest_block.index + 1 or proposed_block.previous_hash != latest_block.hash:
+            return False
+
+        # Validação matemática e de Whitelist
+        if not proposed_block.is_valid_block():
+            print(f"[X] Bloco {proposed_block.index} recebido da rede é inválido!")
+            return False
+
+        # Bloco Aceito! Adiciona à corrente oficial
+        self.chain.append(proposed_block)
+        print(f"[Consenso] Bloco {proposed_block.index} ancorado com sucesso! Hash: {proposed_block.hash[:15]}...")
+        
+        # Limpa da nossa Mempool local os logs que já vieram dentro deste bloco vencedor
+        signatures_in_block = [log.signature for log in proposed_block.logs]
+        self.pending_logs = [log for log in self.pending_logs if log.signature not in signatures_in_block]
+        return True
+
+    def replace_chain(self, external_chain_dicts):
+        """Mecanismo de Sincronização. Substitui cadeia se a externa for maior e válida."""
+        try:
+            external_chain = [Block.from_dict(b) for b in external_chain_dicts]
+            
+            # Verifica se a cadeia externa é de fato maior
+            if len(external_chain) <= len(self.chain):
+                return False
+
+            # Valida toda a cadeia externa
+            for i in range(1, len(external_chain)):
+                current = external_chain[i]
+                previous = external_chain[i-1]
+                
+                if current.previous_hash != previous.hash or not current.is_valid_block():
+                    print(f"[X] Tentativa de sincronização falhou: Bloco {current.index} corrompido.")
+                    return False
+
+            # Se chegou aqui, a nova cadeia é confiável e maior
+            self.chain = external_chain
+            print(f"[*] Sincronização concluída! Cadeia atualizada para {len(self.chain)} blocos.")
+            return True
+            
+        except Exception as e:
+            # AGORA ELE VAI GRITAR O ERRO NA TELA EM VEZ DE ESCONDER
+            print(f"\n[X] Erro crítico no Sincronismo da Cadeia: {e}")
+            import traceback
+            traceback.print_exc()
+            return False

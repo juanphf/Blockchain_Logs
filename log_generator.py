@@ -61,7 +61,7 @@ class K8sLogGenerator:
         )
 
         log_string = log_record.get_log_string()
-        log_record.signature = self.wallet.sign_log(log_string)
+        log_record.signature = self.wallet.sign_message(log_string)
 
         final_dict = log_record.to_dict()
         final_dict["signature"] = log_record.signature
