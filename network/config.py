@@ -18,7 +18,7 @@ NODE_API_URL = os.getenv("NODE_API_URL", f"http://localhost:{NODE_PORT}")
 
 # --- Segurança e Consenso (Proof of Authority) ---
 # Lista de Chaves Públicas autorizadas separadas por vírgula. 
-# Se estiver vazia, aceita qualquer um (apenas para testes).
+# Se estiver vazia, aceita qualquer um.
 WHITELIST_STR = os.getenv("WHITELIST", "")
 ALLOWED_NODES = [key.strip() for key in WHITELIST_STR.split(",")] if WHITELIST_STR else []
 

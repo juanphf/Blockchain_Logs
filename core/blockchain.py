@@ -12,7 +12,7 @@ class Blockchain:
         self.chain = []
         self.pending_logs = []
         
-        # Identidade DESTE nó na rede
+        # Identidade deste nó na rede
         self.node_wallet = Wallet()
         print(f"[*] Identidade do Nó Criada (Public Key): {self.node_wallet.public_key[:20]}...")
         
@@ -88,17 +88,15 @@ class Blockchain:
 
         latest_block = self.get_latest_block()
 
-        # 1. SIRENE DE ATAQUE (Passado distante): Menor que o atual
         if proposed_block.index < latest_block.index:
             print(f"\n[!!!] ALERTA CRÍTICO: Tentativa de reescrever a história! O Bloco {proposed_block.index} já está consolidado. Ataque bloqueado!")
             return False
 
-        # 2. CONDIÇÃO DE CORRIDA (Empate técnico): Igual ao que acabamos de fechar
         if proposed_block.index == latest_block.index:
             print(f"[!] Bloco {proposed_block.index} (Hash: {proposed_block.hash[:8]}...) descartado. A rede já aceitou um bloco mais rápido!")
             return False
             
-        # 3. VERIFICAÇÃO DE ENCAIXE GERAL: Se não for exatamente o próximo, rejeita silenciosamente
+        # Verificação de encaixe: Se não for exatamente o próximo, rejeita silenciosamente
         if proposed_block.index != latest_block.index + 1 or proposed_block.previous_hash != latest_block.hash:
             return False
 
@@ -107,7 +105,6 @@ class Blockchain:
             print(f"[X] Bloco {proposed_block.index} recebido da rede é inválido!")
             return False
 
-        # Bloco Aceito! Adiciona à corrente oficial
         self.chain.append(proposed_block)
         print(f"[Consenso] Bloco {proposed_block.index} ancorado com sucesso! Hash: {proposed_block.hash[:15]}...")
         

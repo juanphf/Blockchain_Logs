@@ -35,7 +35,7 @@ class AuditConsumer:
                         continue
 
                     if topic == TOPIC_BLOCKS:
-                        # TODOS os nós validam o bloco vindo do Kafka, inclusive quem enviou. 
+                        # Todos os nós validam o bloco vindo do Kafka, inclusive quem enviou. 
                         # O Kafka dita a ordem de chegada (Consenso determinístico)
                         accepted = self.blockchain.add_proposed_block(payload)
                         
@@ -46,10 +46,10 @@ class AuditConsumer:
                     if topic == TOPIC_LOGS:
                         if on_log_received: on_log_received(payload)
                         
-                        # add_log retorna um bloco se esse log engatilhou a selagem (10 logs)
+                        # add_log retorna um bloco se esse log engatilhou a selagem
                         new_block = self.blockchain.add_log(payload)
                         
-                        # Se nós fechamos o bloco, avisamos o Front e devolvemos pra API transmitir a PROPOSTA
+                        # Se nós fechamos o bloco, avisamos o Front e devolvemos pra API transmitir a proposta
                         if new_block and on_block_mined:
                             on_block_mined(new_block, broadcast=True)
 

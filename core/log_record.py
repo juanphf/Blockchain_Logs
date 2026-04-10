@@ -22,25 +22,25 @@ class LogRecord:
             'message': self.message
         })
         
-        # Se a assinatura existir e for solicitada, incluímos no pacote!
+        # Se a assinatura existir e for solicitada, será incluida no pacote
         if include_signature and self.signature:
             data['signature'] = self.signature
             
         return data
 
     def get_log_string(self):
-        # A criptografia matemática só pode assinar os DADOS PUROS (sem o campo signature)
+        # A criptografia matemática só pode assinar os dados puros
         pure_data = self.to_dict(include_signature=False)
         return json.dumps(pure_data, sort_keys=True)
 
     def is_valid(self):
-        # 1. Validação de Identidade (Whitelist)
+        # Validação de Identidade
         from network.config import ALLOWED_NODES
         if ALLOWED_NODES and self.node_public_key not in ALLOWED_NODES:
             print("\n[X] ACESSO NEGADO: Nó remetente não está na Whitelist.")
             return False
 
-        # 2. Validação de Assinatura
+        # Validação de Assinatura
         if not self.signature:
             print("\n[X] ALERTA: Tentativa de injeção de log sem assinatura digital.")
             return False
@@ -52,7 +52,7 @@ class LogRecord:
             self.get_log_string()
         )
         
-        # 3. O Alarme de Adulteração
+        # O Alarme de Adulteração
         if not is_crypto_valid:
             print(f"\n[!!!] INVASÃO DETECTADA: O log do pod '{self.pod_name}' foi adulterado após a assinatura!")
             

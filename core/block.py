@@ -34,30 +34,30 @@ class Block:
 
     def is_valid_block(self):
         """Auditoria completa do bloco recebido (Com Debug)"""
-        # 1. Verifica se o hash confere com o conteúdo
+        # Verifica se o hash confere com o conteúdo
         if self.hash != self.calculate_hash():
             print(f"\n[DEBUG] Falha 1: O Hash calculado é diferente do recebido!")
             print(f"-> Recebido:  {self.hash}")
             print(f"-> Calculado: {self.calculate_hash()}\n")
             return False
             
-        # 2. Ignora o Gênesis
+        # Ignora o Gênesis
         if self.index == 0:
             return True 
             
-        # 3. Verifica Whitelist do Minerador
+        # Verifica Whitelist do Minerador
         from network.config import ALLOWED_NODES
         if ALLOWED_NODES and self.miner_pub_key not in ALLOWED_NODES:
             print("[DEBUG] Falha 3: Bloco rejeitado porque o Minerador não está na Whitelist.")
             return False
             
-        # 4. Verifica a Assinatura do Minerador
+        # Verifica a Assinatura do Minerador
         from core.wallet import Wallet
         if not Wallet.verify_signature(self.miner_pub_key, self.signature, self.hash):
             print("[DEBUG] Falha 4: A Assinatura criptográfica do bloco é inválida.")
             return False
             
-        # 5. Verifica todos os logs dentro do bloco
+        # Verifica todos os logs dentro do bloco
         for i, log in enumerate(self.logs):
             if not log.is_valid():
                 print(f"[DEBUG] Falha 5: O Log número {i+1} dentro do bloco corrompeu a validação.")

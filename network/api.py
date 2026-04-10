@@ -43,7 +43,6 @@ def handle_block_mined(block, broadcast=False):
 
         time.sleep(random.uniform(0.01, 0.15))
         
-        # A MÁGICA AQUI: O key="consensus" força o Kafka a enfileirar em uma única pista (Strict Order)
         producer.produce(
             TOPIC_BLOCKS, 
             key="consensus", 

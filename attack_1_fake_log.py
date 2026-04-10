@@ -9,11 +9,9 @@ def simulate_log_attack():
     print("[!] Iniciando Simulação de Ataque 1: Injeção de Log Falso")
     producer = Producer(get_producer_config())
     
-    # O atacante cria sua própria carteira (pois não tem acesso às chaves dos nós reais)
     hacker_wallet = Wallet()
     print(f"[*] Chave Pública do Atacante gerada: {hacker_wallet.public_key[:20]}...")
 
-    # 1. O atacante cria um log aparentemente legítimo
     fake_log_data = OrderedDict({
         'node_public_key': hacker_wallet.public_key,
         'timestamp': time.time(),
@@ -23,11 +21,9 @@ def simulate_log_attack():
         'message': 'Acesso ROOT concedido ao usuario hacker_anonimo'
     })
 
-    # O atacante gera a string pura e assina matematicamente
     log_string = json.dumps(fake_log_data, sort_keys=True)
     signature = hacker_wallet.sign_message(log_string)
     
-    # 2. O ATAQUE: Após assinar, o atacante tenta mudar a mensagem furtivamente no pacote JSON
     fake_log_data['message'] = 'DELETAR BANCO DE DADOS PRINCIPAL'
     fake_log_data['signature'] = signature # Anexa a assinatura original
 
