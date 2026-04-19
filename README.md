@@ -1,5 +1,13 @@
 # Blockchain para Auditoria de Logs (Permissioned)
 
+*Universidade Federal do Rio Grande do Norte (UFRN)* *Departamento de Engenharia de Computação e Automação (DCA)* *Disciplina:* Sistemas Distribuídos
+*Professor/Orientador:* Prof. Eduardo Falcão 
+
+*Equipe de Desenvolvimento:* 
+- Felipe Gabriel 
+- Juan Pablo 
+- Pablo Arthur
+
 ## 📌 Sobre o Projeto
 Este é um sistema de auditoria de logs baseado em uma **Blockchain Permissionada**, projetado para garantir a integridade, imutabilidade e rastreabilidade de eventos críticos em microsserviços. 
 
