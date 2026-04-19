@@ -433,3 +433,9 @@ header {
     font-size: 0.8rem;
     color: var(--text-muted);
 }
+.invalid-log {
+    opacity: 0.5;
+    text-decoration: line-through;
+    border-color: var(--level-critical) !important;
+    background: rgba(239, 68, 68, 0.05) !important;
+}

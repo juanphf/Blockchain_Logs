@@ -38,21 +38,21 @@ class Blockchain:
         try:
             log_record = LogRecord.from_dict(log_data)
         except KeyError as e:
-            return None
+            return False
 
         if not log_record.is_valid():
-            return None
+            return False
             
         # Evita logs duplicados na mempool
         if any(l.signature == log_record.signature for l in self.pending_logs):
-            return None
+            return False
 
         self.pending_logs.append(log_record)
         print(f"[OK] Log na Mempool: {len(self.pending_logs)}/{self.max_logs_per_block}")
 
         if len(self.pending_logs) >= self.max_logs_per_block:
             return self.seal_block() # Retorna o bloco recém criado
-        return None
+        return True
     
     def seal_block(self):
         """O Nó atinge a cota, cria e assina o bloco como PROPOSTA."""

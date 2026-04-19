@@ -36,10 +36,8 @@ def handle_new_log(log_data):
 
 def handle_block_mined(block, broadcast=False):
     """Avisa o Front que um bloco foi fechado e transmite para a rede se fomos o minerador."""
-    notify_clients({"type": "NEW_BLOCK", "data": block.to_dict()})
-    
     if broadcast:
-        print("[*] Transmitindo novo bloco para a rede Kafka...")
+        print("[*] Transmitindo novo bloco (PROPOSTA) para a rede Kafka...")
 
         time.sleep(random.uniform(0.01, 0.15))
         
@@ -49,6 +47,10 @@ def handle_block_mined(block, broadcast=False):
             value=json.dumps(block.to_dict()).encode('utf-8')
         )
         producer.flush()
+    else:
+        # O bloco DE FATO foi aceito e chumbado no banco de dados / na corrente principal!
+        # Agora sim a gente avisa nosso Front-End e apaga a mempool visual.
+        notify_clients({"type": "NEW_BLOCK", "data": block.to_dict()})
 
 def handle_sync_needed(peer_api_url):
     """Outro nó avisou via Ping que tem uma cadeia maior. Vamos baixar."""
@@ -63,6 +65,17 @@ def handle_sync_needed(peer_api_url):
                 # Se atualizou com sucesso, notifica o front-end
                 chain_data = [b.to_dict() for b in blockchain.chain]
                 notify_clients({"type": "CHAIN_HISTORY", "data": chain_data})
+                
+            # Tenta sincronizar a Mempool
+            try:
+                mempool_response = requests.get(f"{peer_api_url}/mempool", timeout=5)
+                if mempool_response.status_code == 200:
+                    external_mempool = mempool_response.json()
+                    for log_data in external_mempool:
+                        blockchain.add_log(log_data)
+            except Exception as e:
+                print(f"[X] Aviso: Mempool não sincronizada de {peer_api_url}: {e}")
+                
     except Exception as e:
         print(f"[X] Falha ao sincronizar com {peer_api_url}: {e}")
 

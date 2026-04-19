@@ -17,9 +17,11 @@ const nodeCountVal = document.getElementById('node-count-val');
 function createLogElement(log) {
     const div = document.createElement('div');
     div.className = `log-item level-${log.level}`;
+    if (log.is_invalid) div.classList.add('invalid-log');
+
     div.innerHTML = `
         <div class="log-top">
-            <span class="log-level">${log.level}</span>
+            <span class="log-level">${log.level} ${log.is_invalid ? '<span style="color: #ef4444; font-weight: 800; font-size: 0.65rem; margin-left: 5px;">[ATAQUE BLOQUEADO]</span>' : ''}</span>
             <span class="log-pod">${log.namespace} / ${log.pod_name}</span>
         </div>
         <div class="log-msg">"${log.message}"</div>
@@ -33,10 +35,14 @@ function renderMempool() {
     mempoolContainer.innerHTML = '';
     // Vamos inverter o array para que o log que acabou de entrar seja o primeiro a ser desenhado no topo da tela
     const reversedLogs = [...mempoolLogs].reverse();
+    let validCount = 0;
+    
     reversedLogs.forEach(log => {
+        if (!log.is_invalid) validCount++;
         mempoolContainer.appendChild(createLogElement(log));
     });
-    mempoolCount.innerText = `${mempoolLogs.length}/${maxMempool}`;
+    
+    mempoolCount.innerText = `${validCount}/${maxMempool}`;
 }
 
 // Renderizar um bloco solitário na tela do Blockchain

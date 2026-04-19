@@ -44,14 +44,22 @@ class AuditConsumer:
                         continue
                         
                     if topic == TOPIC_LOGS:
-                        if on_log_received: on_log_received(payload)
+                        # add_log retorna False, True (enfileirado) ou um Bloco recém-selado
+                        result = self.blockchain.add_log(payload)
                         
-                        # add_log retorna um bloco se esse log engatilhou a selagem
-                        new_block = self.blockchain.add_log(payload)
-                        
-                        # Se nós fechamos o bloco, avisamos o Front e devolvemos pra API transmitir a proposta
-                        if new_block and on_block_mined:
-                            on_block_mined(new_block, broadcast=True)
+                        if result is False:
+                            # Log atacante/inválido. Repassa visível para auditoria Front-End, mas sem computar banco de dados.
+                            payload['is_invalid'] = True
+                            if on_log_received:
+                                on_log_received(payload)
+                        else:
+                            # Se for válido (True ou Bloco), repassa ao frontend
+                            if on_log_received: 
+                                on_log_received(payload)
+                            
+                            # Se result for um objeto de Bloco, significa que selamos o Hash.
+                            if result is not True and on_block_mined:
+                                on_block_mined(result, broadcast=True)
 
                 except Exception as e:
                     traceback.print_exc() 
